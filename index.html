@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>B Hydro Survey Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an acquisition console. Fixed settings rail on the left, three workspaces (vessel, acquisition, signal) on the right. Single dark look, as used on the bridge at night. */
+:root{
+  --bg:#09141D; --panel:#0F1E2A; --panel2:#132635; --line:#21384A; --ink:#E2EBF0; --muted:#8CA3B3;
+  --accent:#3FC1C9; --accent-dim:#1B4D55; --warn:#F2A541; --bad:#EF6B73; --good:#5ED39A;
+  --sans:'IBM Plex Sans','Segoe UI',Arial,sans-serif; --mono:'IBM Plex Mono',ui-monospace,'Courier New',monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--sans);font-size:14px;line-height:1.45;margin:0}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--warn);outline-offset:2px}
+.top{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px;letter-spacing:.01em}
+.brand small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.tab{background:transparent;border:1px solid var(--line);border-radius:6px;padding:7px 14px;cursor:pointer;color:var(--muted);font-weight:500}
+.tab[aria-selected="true"]{background:var(--accent-dim);border-color:var(--accent);color:var(--ink)}
+.app{display:grid;grid-template-columns:310px 1fr;min-height:calc(100vh - 60px)}
+.rail{border-right:1px solid var(--line);background:var(--panel);padding-block:8px 24px;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:14px;overflow:auto;max-height:calc(100vh - 60px);position:sticky;top:0}
+.main{min-width:0;padding-block:16px 32px;padding-left:18px;padding-right:max(16px,env(safe-area-inset-right,0px))}
+details.sec{border-bottom:1px solid var(--line);padding-block:6px}
+details.sec summary{cursor:pointer;list-style:none;font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);padding:8px 0;display:flex;justify-content:space-between}
+details.sec summary::after{content:"+";color:var(--muted)}
+details.sec[open] summary::after{content:"–"}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:5px 0}
+.ctl label{font-size:13px;color:var(--ink)}
+.ctl output{font-family:var(--mono);font-size:12px;color:var(--accent);font-variant-numeric:tabular-nums;text-align:right}
+.ctl input[type=range],.ctl select{grid-column:1/-1;width:100%}
+.ctl select{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:5px 6px}
+input[type=range]{accent-color:var(--accent);height:18px}
+.ctl.chk{grid-template-columns:auto 1fr;align-items:center}
+.hint{font-size:12px;color:var(--muted);padding:4px 0 6px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#06222A;font-weight:600}
+.btn.warn{border-color:var(--warn);color:var(--warn)}
+h2{font-size:18px;font-weight:600;margin:0}
+h3{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+.view{display:flex;flex-direction:column;gap:16px}
+.view[hidden]{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.row{display:grid;gap:16px}
+.r2{grid-template-columns:1fr 1fr}
+.r-acq{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+canvas{display:block;width:100%;border-radius:6px;background:#0B1924;touch-action:none}
+.cv-plan{height:260px}.cv-prof{height:240px}.cv-cov{aspect-ratio:1/1;height:auto}.cv-ping{height:300px}.cv-snr{height:300px}.cv-svp{height:300px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+td input{width:76px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:3px 6px;text-align:right;font-family:var(--mono)}
+tr.sel td{background:#14303D}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:-1px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.kv div{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kv span{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.kv b{font-family:var(--mono);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid}
+.pill.ok{color:var(--good);border-color:var(--good)}.pill.bad{color:var(--bad);border-color:var(--bad)}.pill.warn{color:var(--warn);border-color:var(--warn)}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.note{font-size:13px;color:var(--muted);max-width:75ch}
+.note b{color:var(--ink);font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:6px 12px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-dim);color:var(--ink)}
+.facts td:first-child{white-space:normal;min-width:130px}
+.facts td{white-space:normal;vertical-align:top}
+.up{color:var(--good)}.down{color:var(--bad)}
+.alert{border-left:3px solid var(--warn);padding:6px 10px;background:#2A2416;border-radius:4px;font-size:13px}
+@media (max-width:1100px){.r-acq,.r2{grid-template-columns:1fr}}
+@media (max-width:820px){.app{grid-template-columns:1fr}.rail{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}.main{padding-left:max(16px,env(safe-area-inset-left,0px))}.tabs{margin-left:0}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg width="34" height="26" viewBox="0 0 34 26" aria-hidden="true"><path d="M2 9c4-6 8-6 12 0s8 6 12 0 6-3 6-3" fill="none" stroke="#3FC1C9" stroke-width="2.2" stroke-linecap="round"/><path d="M2 18c4-6 8-6 12 0s8 6 12 0 6-3 6-3" fill="none" stroke="#E2EBF0" stroke-width="2.2" stroke-linecap="round" opacity=".6"/></svg>
+    <div>B Hydro Survey Lab<small>Vessel offsets · Multibeam acquisition · Sonar performance</small></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Workspaces">
+    <button class="tab" role="tab" id="tab-vessel" data-view="vessel">1 · Vessel &amp; offsets</button>
+    <button class="tab" role="tab" id="tab-acquisition" data-view="acquisition">2 · Acquisition</button>
+    <button class="tab" role="tab" id="tab-signal" data-view="signal">3 · Sound &amp; SNR</button>
+  </nav>
+</header>
+
+<div class="app">
+  <aside class="rail" id="rail" aria-label="Settings"></aside>
+
+  <main class="main">
+    <!-- VESSEL -->
+    <section class="view" id="view-vessel" hidden>
+      <div class="bar" style="justify-content:space-between">
+        <h2>Vessel reference frame and lever arms</h2>
+        <div class="bar"><label for="conv" class="hint" style="padding:0">Offset convention</label>
+          <select id="conv" class="btn">
+            <option value="kongsberg">Kongsberg SIS / POS MV (X fwd, Y stbd, Z down)</option>
+            <option value="caris">CARIS HIPS (X stbd, Y fwd, Z down)</option>
+            <option value="qinsy">QPS Qinsy (X stbd, Y fwd, Z up)</option>
+          </select></div>
+      </div>
+      <div class="row r2">
+        <div class="card"><h3>Plan view · drag a sensor to move it</h3><canvas id="cvPlan" class="cv-plan" aria-label="Plan view of the vessel with sensor positions"></canvas></div>
+        <div class="card"><h3>Profile view (starboard side) · drag to move</h3><canvas id="cvProf" class="cv-prof" aria-label="Profile view of the vessel with sensor positions and waterline"></canvas></div>
+      </div>
+      <div class="row r2">
+        <div class="card">
+          <h3>Sensor offsets from the reference point (m)</h3>
+          <div class="tablewrap"><table id="offTable"></table></div>
+          <p class="hint">Offsets are measured from the reference point (RP) on a vessel survey. Click a row to show its dimension lines. Always confirm the axis convention in your software manual before typing values.</p>
+        </div>
+        <div class="card">
+          <h3>Derived lever arms and checks</h3>
+          <div class="kv" id="derived"></div>
+          <div class="ctl"><label for="tRoll">Test roll</label><output id="tRollO"></output><input type="range" id="tRoll" min="-15" max="15" step="0.5" value="5"></div>
+          <div class="ctl"><label for="tPitch">Test pitch</label><output id="tPitchO"></output><input type="range" id="tPitch" min="-8" max="8" step="0.5" value="2"></div>
+          <div class="kv" id="induced"></div>
+          <p class="note"><b>Induced heave</b> is the vertical motion of the transducer caused only by roll and pitch acting on the lever arm from the motion sensor. If that lever arm is wrong, every roll and pitch puts a small depth error into the data, which shows up as ripples along the survey line.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Hull dimensions</h3>
+        <div class="row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))" id="hullCtl"></div>
+      </div>
+    </section>
+
+    <!-- ACQUISITION -->
+    <section class="view" id="view-acquisition" hidden>
+      <div class="bar" style="justify-content:space-between">
+        <h2>Simulated survey</h2>
+        <div class="bar">
+          <button class="btn primary" id="runBtn" type="button">Start logging</button>
+          <button class="btn" id="resetBtn" type="button">Clear survey</button>
+          <div class="seg" role="group" aria-label="Map layer">
+            <button type="button" id="layDepth" aria-pressed="true">Depth</button>
+            <button type="button" id="layErr" aria-pressed="false">Error vs true seabed</button>
+            <button type="button" id="laySnr" aria-pressed="false">SNR</button>
+          </div>
+        </div>
+      </div>
+      <div class="kv" id="acqStats"></div>
+      <div id="acqAlerts" class="view" style="gap:6px"></div>
+      <div class="row r-acq">
+        <div class="card"><h3 id="covTitle">Coverage map</h3><canvas id="cvCov" class="cv-cov" aria-label="Coverage map of the simulated survey area"></canvas><div class="legend" id="covLegend"></div></div>
+        <div class="card"><h3>Current ping · across-track section</h3><canvas id="cvPing" class="cv-ping" aria-label="Across-track section of the current ping showing ray paths and soundings"></canvas>
+          <div class="legend"><span><i style="background:#8CA3B3"></i>True seabed</span><span><i style="background:#3FC1C9"></i>Ray paths</span><span><i style="background:#5ED39A;height:8px;width:8px;border-radius:50%"></i>Valid sounding</span><span><i style="background:#EF6B73;height:8px;width:8px;border-radius:50%"></i>Rejected (low SNR)</span></div>
+          <p class="note">The simulator traces every beam through the real water column, then reprocesses it the way acquisition software would, using what the system <b>thinks</b> it knows: its motion data, offsets and sound velocity. Any difference becomes a depth error. Use the <b>What-if errors</b> settings to create the classic artefacts.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SIGNAL -->
+    <section class="view" id="view-signal" hidden>
+      <h2>Sound in water and signal-to-noise ratio</h2>
+      <div class="kv" id="sigStats"></div>
+      <div class="row r2">
+        <div class="card"><h3>SNR across the swath (flat seabed at survey depth)</h3><canvas id="cvSnr" class="cv-snr" aria-label="Chart of echo level, noise level and signal-to-noise ratio against beam angle"></canvas>
+          <div class="legend"><span><i style="background:#3FC1C9"></i>Echo level</span><span><i style="background:#F2A541"></i>Noise level</span><span><i style="background:#5ED39A"></i>SNR</span><span><i style="background:#EF6B73"></i>Detection threshold</span></div></div>
+        <div class="card"><h3>Water column</h3><canvas id="cvSvp" class="cv-svp" aria-label="Temperature and sound speed profiles"></canvas>
+          <div class="legend"><span><i style="background:#3FC1C9"></i>Sound speed (true)</span><span><i style="background:#F2A541"></i>Sound speed used in processing</span><span><i style="background:#8CA3B3"></i>Temperature</span></div></div>
+      </div>
+      <div class="row r2">
+        <div class="card">
+          <div class="bar" style="justify-content:space-between"><h3>Sonar equation for one beam</h3><span class="hint" style="padding:0">Beam angle <output id="angO" style="font-family:var(--mono);color:var(--accent)"></output></span></div>
+          <input type="range" id="sigAngle" min="0" max="80" step="1" value="45" aria-label="Beam angle for the sonar equation">
+          <div class="tablewrap"><table id="budget"></table></div>
+        </div>
+        <div class="card">
+          <h3>What changes the signal-to-noise ratio</h3>
+          <div class="tablewrap"><table class="facts" id="facts"></table></div>
+        </div>
+      </div>
+      <p class="note">Model notes: sound speed from Mackenzie (1981), absorption from Ainslie &amp; McColm (1998), ambient noise from Coates’ fit to the Wenz curves, Lambert seabed backscatter with a specular peak near nadir. Vessel self-noise, aeration loss and sonar source levels are simplified, typical values for training. Use manufacturer specifications for real survey planning.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+const deg=Math.PI/180, L10=Math.log10;
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* ---------------- state ---------------- */
+const PRESETS={
+  em2040:{name:'Kongsberg EM 2040 (generic)',f:300,SL:214,txBW:1,rxBW:1,nBeams:256,maxA:70,ping:15},
+  em712:{name:'Kongsberg EM 712 (generic)',f:70,SL:224,txBW:1,rxBW:1,nBeams:256,maxA:70,ping:4},
+  em304:{name:'Kongsberg EM 304 (generic)',f:30,SL:234,txBW:1,rxBW:2,nBeams:256,maxA:75,ping:1},
+  r2024:{name:'R2Sonic 2024 (generic)',f:400,SL:221,txBW:1,rxBW:0.5,nBeams:256,maxA:75,ping:30},
+  custom:{name:'Custom'}
+};
+const S={
+  sonar:{preset:'em2040',f:300,SL:214,autoTau:true,tau:200,txBW:1,rxBW:1,nBeams:256,maxA:70,ping:15,gain:12,DT:8},
+  env:{depth:60,model:'waves',seabed:'sand',Ts:22,Tb:14,mld:12,thick:30,S:37.5,ss:3,ship:'med'},
+  survey:{speed:6,overlap:25,play:1,order:'1a'},
+  err:{svp:'correct',svs:0,rollBias:0,pitchBias:0,lat:0,txY:0,txZ:0,gnssX:0},
+  hull:{L:32,B:8,rpFromStern:14,draft:2.6,freeboard:1.8},
+  conv:'kongsberg', sel:'tx', tab:'acquisition'
+};
+const SENS=[
+  {id:'rp',name:'Reference point (RP)',x:0,y:0,z:0,col:'#E2EBF0',fixed:true},
+  {id:'imu',name:'IMU / motion sensor',x:0.6,y:0,z:0.4,col:'#B58CFF'},
+  {id:'gnss1',name:'GNSS antenna 1 (primary)',x:-3.2,y:-1.1,z:-7.4,col:'#F2A541'},
+  {id:'gnss2',name:'GNSS antenna 2 (secondary)',x:-3.2,y:1.1,z:-7.4,col:'#F2C27A'},
+  {id:'tx',name:'Multibeam transmitter',x:4.8,y:0.35,z:3.35,col:'#3FC1C9'},
+  {id:'rx',name:'Multibeam receiver',x:4.55,y:0.35,z:3.37,col:'#2E8F96'},
+  {id:'svs',name:'Sound velocity probe',x:4.9,y:0.62,z:3.4,col:'#5ED39A'},
+  {id:'wl',name:'Waterline',x:null,y:null,z:1.0,col:'#7AA7C7'}
+];
+const sens=id=>SENS.find(s=>s.id===id);
+
+const SEABED={rock:{n:'Rock',mu:-15},gravel:{n:'Gravel',mu:-20},sand:{n:'Sand',mu:-26},mud:{n:'Mud',mu:-33},clay:{n:'Soft clay',mu:-38}};
+const SS_WIND=[0.5,2,4.5,7,10,13,17], SS_BUB=[0,0,0.5,1.5,3.5,7,12], SS_ROLL=[0,0.8,2,3.5,5.5,8,11], SS_HEAVE=[0,0.08,0.25,0.5,0.9,1.4,2.1];
+const SS_NAME=['0 · Calm (glassy)','1 · Calm (rippled)','2 · Smooth','3 · Slight','4 · Moderate','5 · Rough','6 · Very rough'];
+const SHIP={low:0.2,med:0.5,high:0.9};
+const IHO={special:{n:'Special Order',a:0.25,b:0.0075},'1a':{n:'Order 1a',a:0.5,b:0.013},'1b':{n:'Order 1b',a:0.5,b:0.013},'2':{n:'Order 2',a:1.0,b:0.023}};
+
+/* ---------------- physics ---------------- */
+function mack(T,Sa,D){return 1448.96+4.591*T-5.304e-2*T*T+2.374e-4*T*T*T+1.340*(Sa-35)+1.630e-2*D+1.675e-7*D*D-1.025e-2*T*(Sa-35)-7.139e-13*T*D*D*D;}
+function tempAt(z,sh){const e=S.env;const Ts=e.Ts+(sh?sh.dT:0),mld=Math.max(0,e.mld+(sh?sh.dM:0)),th=e.thick,Tb=Math.min(e.Tb,Ts);
+  if(z<=mld)return Ts; if(z<=mld+th)return Ts+(Tb-Ts)*(z-mld)/th; return Math.max(2,Tb-0.0012*(z-mld-th));}
+function absorption(f,T,Sa,zkm){const f1=0.78*Math.sqrt(Sa/35)*Math.exp(T/26),f2=42*Math.exp(T/17);
+  return 0.106*f1*f*f/(f1*f1+f*f)*Math.exp((8-8)/0.56)+0.52*(1+T/43)*(Sa/35)*f2*f*f/(f2*f2+f*f)*Math.exp(-zkm/6)+0.00049*f*f*Math.exp(-(T/27+zkm/17));}
+function tau(){return S.sonar.autoTau?clamp(Math.round(S.env.depth*3.5/5)*5,25,20000):S.sonar.tau;}
+function noise(f){const w=SS_WIND[S.env.ss],sh=SHIP[S.env.ship],v=Math.max(S.survey.speed,1);
+  const th=-15+20*L10(f), wind=50+7.5*Math.sqrt(w)+20*L10(f)-40*L10(f+0.4), ship=40+20*(sh-0.5)+26*L10(f)-60*L10(f+0.03), self=75-20*L10(f)+40*L10(v/10);
+  const tot=10*L10(Math.pow(10,th/10)+Math.pow(10,wind/10)+Math.pow(10,ship/10)+Math.pow(10,self/10));
+  return {th,wind,ship,self,tot};}
+function meanT(){let s=0,n=40;for(let i=0;i<n;i++)s+=tempAt(S.env.depth*(i+0.5)/n);return s/n;}
+let ALPHA=0,CMEAN=1500;
+function budget(R,thDeg){
+  const so=S.sonar,f=so.f,th=Math.max(thDeg,0.01)*deg,t=tau()*1e-6;
+  const spread=20*L10(R),absL=ALPHA*R/1000,bub=SS_BUB[S.env.ss]/2,TL=spread+absL+bub;
+  const cos=Math.cos(th),sin=Math.sin(th);
+  const BS=SEABED[S.env.seabed].mu+10*L10(Math.max(cos*cos,1e-3))+12*Math.exp(-Math.pow(thDeg/8,2));
+  const Phi=so.txBW*deg,Psi=so.rxBW*deg;
+  const Ab=R*R*Phi*Psi/Math.max(cos,0.05),Ap=(CMEAN*t/2)/Math.max(sin,1e-3)*R*Phi,A=Math.min(Ab,Ap);
+  const EL=so.SL-2*TL+BS+10*L10(A);
+  const nz=noise(f),B=1/t,DI=10*L10(2/Psi);
+  const NL=nz.tot+10*L10(B)-DI;
+  const SNR=EL-NL+so.gain;
+  return {spread,absL,bub,TL,BS,A,areaMode:Ab<Ap?'beam-limited':'pulse-limited',EL,nz,B,DI,NL,SNR};}
+function maxValidAngle(){const D=Math.max(S.env.depth-txDraft(),1);let best=0;
+  for(let a=0;a<=S.sonar.maxA;a+=0.5){const b=budget(D/Math.cos(a*deg),a);if(b.SNR>=S.sonar.DT)best=a;else if(a>10)break;}return best;}
+
+/* geometry */
+function rot(x,y,z,r,p){const y1=y*Math.cos(r)-z*Math.sin(r),z1=y*Math.sin(r)+z*Math.cos(r);return {x:x*Math.cos(p)+z1*Math.sin(p),y:y1,z:-x*Math.sin(p)+z1*Math.cos(p)};}
+function txDraft(){return sens('tx').z-sens('wl').z;}
+
+/* world + profiles */
+let W={},PT=null,PA=null;
+function buildWorld(){
+  const D=S.env.depth,Lw=clamp(D*12,160,30000),Lh=Lw*0.8;
+  W={D,Lw,Lh,slope:S.env.model==='flat'?0:0.035,mx:Lw*0.6,my:Lh*0.5,mH:S.env.model==='flat'?0:D*0.16,mS:Lw*0.11,wA:S.env.model==='waves'?Math.max(0.15,D*0.012):0,wL:Math.max(8,Lw*0.045)};
+  let mn=1e9,mx=-1e9;for(let i=0;i<=40;i++)for(let j=0;j<=40;j++){const d=depthAt(i/40*Lw,j/40*Lh);mn=Math.min(mn,d);mx=Math.max(mx,d);}W.min=mn;W.max=mx;
+  const zmax=mx*1.35+20;PT=profile(zmax,'true');PA=profile(zmax,S.err.svp);
+}
+function depthAt(x,y){let d=W.D+W.slope*(x-W.Lw/2);const dx=x-W.mx,dy=y-W.my;d-=W.mH*Math.exp(-(dx*dx+dy*dy)/(2*W.mS*W.mS));
+  if(W.wA)d+=W.wA*Math.sin((x*0.8+y*0.6)*2*Math.PI/W.wL);return Math.max(d,2);}
+function profile(zmax,kind){const n=220,dz=zmax/n,c=new Float64Array(n+1);const sh=kind==='stale'?{dT:-1.5,dM:-8}:null;
+  const c0=mack(S.env.Ts,S.env.S,0);for(let i=0;i<=n;i++){const z=i*dz;c[i]=kind==='const'?c0:mack(tempAt(z,sh),S.env.S,z);}return {c,dz,n};}
+function cAt(P,z){return P.c[clamp(Math.floor(z/P.dz),0,P.n)];}
+function traceBottom(P,p,z0,x0,bottom,rec){let z=z0,x=x0,t=0,i=Math.floor(z/P.dz);const pts=rec?[[x,z]]:null;
+  for(let k=0;k<5000;k++){const c=P.c[Math.min(i,P.n)];const s=p*c;if(Math.abs(s)>=0.999)return null;const cs=Math.sqrt(1-s*s),tg=s/cs;
+    const zN=(i+1)*P.dz,dz=zN-z;if(dz<=1e-9){i++;continue;}
+    const xN=x+dz*tg;if(zN>=bottom(xN)){let f=clamp((bottom(x)-z)/dz,0,1);for(let q=0;q<3;q++)f=clamp((bottom(x+f*dz*tg)-z)/dz,0,1);
+      x+=f*dz*tg;t+=f*dz/(c*cs);z+=f*dz;if(rec)pts.push([x,z]);return {x,z,t,s,pts};}
+    x=xN;z=zN;t+=dz/(c*cs);i++;if(rec&&k%4===0)pts.push([x,z]);if(i>P.n)return null;}return null;}
+function traceTime(P,p,z0,x0,T){let z=z0,x=x0,t=0,i=Math.floor(z/P.dz);
+  for(let k=0;k<5000;k++){const c=P.c[Math.min(i,P.n)];const s=p*c;if(Math.abs(s)>=0.999)return null;const cs=Math.sqrt(1-s*s),tg=s/cs;
+    let dz=(i+1)*P.dz-z;if(i>=P.n)dz=1e6;if(dz<=1e-9){i++;continue;}const dt=dz/(c*cs);
+    if(t+dt>=T){const f=(T-t)/dt;return {x:x+f*dz*tg,z:z+f*dz};}t+=dt;x+=dz*tg;z+=dz;i++;}return null;}
+
+/* motion */
+function motion(t){const ss=S.env.ss,A=SS_ROLL[ss]*deg,H=SS_HEAVE[ss];
+  return {r:A*(Math.sin(2*Math.PI*t/6.4)+0.35*Math.sin(2*Math.PI*t/2.7+1.1)),p:A*0.38*Math.sin(2*Math.PI*t/5.2+0.6),h:H*Math.sin(2*Math.PI*t/7.6+0.3)};}
+
+/* ---------------- survey simulation ---------------- */
+const N=220;let G={},SIM={};
+function resetSurvey(){buildWorld();refreshDerived();
+  G={sum:new Float32Array(N*N),cnt:new Uint16Array(N*N),err:new Float32Array(N*N),snr:new Float32Array(N*N)};
+  const va=maxValidAngle(),sw=2*Math.max(S.env.depth-txDraft(),1)*Math.tan(Math.max(va,15)*deg),sp=Math.max(sw*(1-S.survey.overlap/100),5);
+  const lines=[];for(let x=sp*0.45;x<W.Lw&&lines.length<40;x+=sp)lines.push(x);
+  SIM={t:0,line:0,lines,dir:1,y:-W.Lh*0.04,pingAcc:0,pings:0,last:null,yPrev:null,stats:{n:0,ok:0,sq:0,max:0,valid:0,tot:0},swath:sw,spacing:sp,done:false,prevY:{}};
+  drawCoverage(true);drawPing();updateAcqStats();}
+function pingRateEff(){const D=W.max||S.env.depth;const R=D/Math.cos(S.sonar.maxA*deg);return Math.min(S.sonar.ping,1/(2*R/1500+0.004));}
+function doPing(){
+  const so=S.sonar,er=S.err,t=SIM.t,lat=er.lat/1000;
+  const m=motion(t),mm=motion(t-lat);
+  const rm=mm.r+er.rollBias*deg,pm=mm.p+er.pitchBias*deg;
+  const imu=sens('imu'),tx=sens('tx'),wl=sens('wl');
+  const Lc=[tx.x-imu.x,tx.y-imu.y,tx.z-imu.z],Lt=[Lc[0],Lc[1]+er.txY,Lc[2]+er.txZ];
+  const Tt=rot(Lt[0],Lt[1],Lt[2],m.r,m.p),Ts=rot(Lc[0],Lc[1],Lc[2],rm,pm);
+  const zImu=imu.z-wl.z;
+  const z0t=zImu+m.h+Tt.z,z0s=zImu+mm.h+Ts.z;
+  if(z0t<0.2)return null;
+  const sg=SIM.dir,shipX=SIM.lines[SIM.line],yb=SIM.y+sg*Tt.x,ys=SIM.y+sg*(Ts.x+er.gnssX);
+  const c0=cAt(PT,z0t),cS=c0+er.svs;
+  const bottom=xl=>depthAt(shipX+sg*xl,yb);
+  const n=so.nBeams,A=so.maxA*deg,out=[];
+  for(let j=0;j<n;j++){
+    const b=-A+2*A*j/(n-1);
+    const steer=Math.asin(clamp(Math.sin(b-rm)*c0/cS,-0.999,0.999));
+    const act=steer+m.r;
+    const rec=(j%Math.max(1,Math.round(n/24))===0);
+    const tr=traceBottom(PT,Math.sin(act)/c0,z0t,Tt.y,bottom,rec);
+    if(!tr)continue;
+    const slope=(bottom(tr.x+0.5)-bottom(tr.x-0.5));
+    const inc=Math.abs(Math.asin(tr.s)+Math.atan(slope))/deg;
+    const R=tr.t*CMEAN;
+    const snr=budget(R,inc).SNR;
+    const rc=traceTime(PA,Math.sin(b)/cS,z0s,Ts.y,tr.t);
+    if(!rc)continue;
+    const wx=shipX+sg*rc.x,trueD=depthAt(wx,ys);
+    out.push({b,tx:tr.x,tz:tr.z,mx:rc.x,mz:rc.z,wx,wy:ys,err:rc.z-trueD,snr,ok:snr>=so.DT,pts:tr.pts});
+  }
+  return {m,mm,z0t,Tt,out,shipX,sg,t};
+}
+function cellIdx(x,y){const i=Math.floor(x/W.Lw*N),j=Math.floor(y/W.Lh*N);if(i<0||j<0||i>=N||j>=N)return -1;return j*N+i;}
+function storePing(P,yFrom){
+  const tvuF=IHO[S.survey.order];
+  for(const s of P.out){SIM.stats.tot++;if(!s.ok)continue;SIM.stats.valid++;
+    const d=s.mz,tvu=Math.sqrt(tvuF.a*tvuF.a+Math.pow(tvuF.b*d,2));
+    SIM.stats.n++;if(Math.abs(s.err)<=tvu)SIM.stats.ok++;SIM.stats.sq+=s.err*s.err;SIM.stats.max=Math.max(SIM.stats.max,Math.abs(s.err));
+    const y0=yFrom==null?s.wy:yFrom,y1=s.wy;const ja=Math.floor(Math.min(y0,y1)/W.Lh*N),jb=Math.floor(Math.max(y0,y1)/W.Lh*N);
+    const i=Math.floor(s.wx/W.Lw*N);if(i<0||i>=N)continue;
+    for(let j=Math.max(0,ja);j<=Math.min(N-1,jb);j++){const k=j*N+i;G.sum[k]+=d;G.err[k]+=s.err;G.snr[k]+=s.snr;G.cnt[k]++;}}
+}
+let running=false,lastT=0,lastDraw=0;
+function step(ts){
+  if(!running){lastT=0;return;}
+  const dtR=lastT?Math.min((ts-lastT)/1000,0.1):0;lastT=ts;
+  const v=S.survey.speed*0.5144,mult=W.Lh/(v*12)*S.survey.play;
+  const adv=dtR*mult;const rate=pingRateEff(),dtP=1/rate;
+  SIM.pingAcc+=adv;let np=Math.floor(SIM.pingAcc/dtP);const maxP=3;const every=np>maxP?np/maxP:1;let computed=0;
+  for(let k=0;k<np&&computed<maxP;k+=every){computed++;}
+  const nComp=Math.min(np,maxP);
+  for(let k=0;k<nComp;k++){
+    const frac=(k+1)/nComp;const dtAdv=(np*dtP)/nComp;
+    SIM.t+=dtAdv;SIM.y+=SIM.dir*v*dtAdv;SIM.pings+=np/nComp;
+    const P=doPing();if(P){storePing(P,SIM.yPrev);SIM.last=P;SIM.yPrev=P.out.length?P.out[0].wy:SIM.y;}
+  }
+  SIM.pingAcc-=np*dtP;
+  if((SIM.dir>0&&SIM.y>W.Lh*1.04)||(SIM.dir<0&&SIM.y<-W.Lh*0.04)){
+    SIM.line++;SIM.yPrev=null;
+    if(SIM.line>=SIM.lines.length){SIM.line=SIM.lines.length-1;SIM.done=true;running=false;setRun();}
+    else{SIM.dir*=-1;SIM.y=SIM.dir>0?-W.Lh*0.04:W.Lh*1.04;}
+  }
+  if(ts-lastDraw>90){lastDraw=ts;drawCoverage();drawPing();updateAcqStats();}
+  requestAnimationFrame(step);
+}
+function setRun(){$('runBtn').textContent=running?'Pause logging':(SIM.done?'Survey complete':'Start logging');}
+
+/* ---------------- canvas helpers ---------------- */
+function cv(id){const c=$(id);const r=c.getBoundingClientRect();const dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=Math.max(10,Math.round(r.width)),h=Math.max(10,Math.round(r.height));if(c.width!==w*dpr||c.height!==h*dpr){c.width=w*dpr;c.height=h*dpr;}
+  const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return {ctx,w,h,c};}
+const RAMP=[[0,[253,238,153]],[0.22,[139,211,166]],[0.45,[47,166,181]],[0.7,[44,106,166]],[1,[46,31,94]]];
+function ramp(t){t=clamp(t,0,1);for(let i=1;i<RAMP.length;i++){if(t<=RAMP[i][0]){const a=RAMP[i-1],b=RAMP[i],f=(t-a[0])/(b[0]-a[0]);return [0,1,2].map(k=>a[1][k]+(b[1][k]-a[1][k])*f);}}return RAMP[RAMP.length-1][1];}
+function div(t){t=clamp(t,-1,1);const mid=[34,49,61],neg=[76,155,232],pos=[242,155,66];const c=t<0?neg:pos,f=Math.pow(Math.abs(t),0.8);return [0,1,2].map(k=>mid[k]+(c[k]-mid[k])*f);}
+function txt(ctx,s,x,y,col,al,font){ctx.fillStyle=col||'#8CA3B3';ctx.font=font||'11px IBM Plex Mono, monospace';ctx.textAlign=al||'left';ctx.fillText(s,x,y);}
+
+/* ---------------- coverage map ---------------- */
+let layer='depth',covImg=null;
+function drawCoverage(){
+  const {ctx,w,h}=cv('cvCov');ctx.clearRect(0,0,w,h);ctx.fillStyle='#0B1924';ctx.fillRect(0,0,w,h);
+  if(!covImg||covImg.width!==N)covImg=new ImageData(N,N);
+  const d=covImg.data,tvuF=IHO[S.survey.order],tvu=Math.sqrt(tvuF.a*tvuF.a+Math.pow(tvuF.b*W.D,2));
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const k=j*N+i,o=((N-1-j)*N+i)*4,c=G.cnt[k];
+    if(!c){d[o]=14;d[o+1]=28;d[o+2]=39;d[o+3]=255;continue;}
+    let col;if(layer==='depth'){const z=G.sum[k]/c;col=ramp((z-W.min)/Math.max(W.max-W.min,0.5));
+      const kl=i>0&&G.cnt[k-1]?G.sum[k-1]/G.cnt[k-1]:z,kd=j>0&&G.cnt[k-N]?G.sum[k-N]/G.cnt[k-N]:z;const cell=W.Lw/N;
+      const sh=clamp(1-((z-kl)+(kd-z))/cell*1.6,0.45,1.35);col=col.map(v=>v*sh);}
+    else if(layer==='err'){col=div((G.err[k]/c)/tvu);}
+    else{const s=G.snr[k]/c;col=s<S.sonar.DT?[239,107,115]:ramp(1-clamp((s-S.sonar.DT)/40,0,1)*0.85-0.05);}
+    d[o]=clamp(col[0],0,255);d[o+1]=clamp(col[1],0,255);d[o+2]=clamp(col[2],0,255);d[o+3]=255;}
+  const off=document.createElement('canvas');off.width=N;off.height=N;off.getContext('2d').putImageData(covImg,0,0);
+  const pad=26,size=Math.min(w,h)-pad-6,ox=pad,oy=6;ctx.imageSmoothingEnabled=false;ctx.drawImage(off,ox,oy,size,size);
+  ctx.strokeStyle='#21384A';ctx.strokeRect(ox,oy,size,size);
+  const X=x=>ox+x/W.Lw*size,Y=y=>oy+size-y/W.Lh*size;
+  ctx.setLineDash([4,5]);ctx.strokeStyle='rgba(226,235,240,.25)';SIM.lines.forEach((lx,i)=>{if(i<SIM.line)return;ctx.beginPath();ctx.moveTo(X(lx),Y(0));ctx.lineTo(X(lx),Y(W.Lh));ctx.stroke();});ctx.setLineDash([]);
+  if(!SIM.done){const sx=X(SIM.lines[SIM.line]),sy=Y(clamp(SIM.y,0,W.Lh));ctx.save();ctx.translate(sx,sy);if(SIM.dir<0)ctx.rotate(Math.PI);
+    ctx.fillStyle='#F2A541';ctx.strokeStyle='#09141D';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-9);ctx.lineTo(5,5);ctx.lineTo(0,2);ctx.lineTo(-5,5);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}
+  const sc=niceStep(W.Lw/4);txt(ctx,'0',ox,oy+size+14);txt(ctx,fmtM(W.Lw),ox+size,oy+size+14,null,'right');txt(ctx,'N ↑',ox-20,oy+12);
+  ctx.fillStyle='#E2EBF0';ctx.fillRect(ox+size-10-sc/W.Lw*size,oy+size-12,sc/W.Lw*size,3);txt(ctx,fmtM(sc),ox+size-10,oy+size-17,'#E2EBF0','right');
+  $('covTitle').textContent=`Coverage map · ${fmtM(W.Lw)} × ${fmtM(W.Lh)} · line ${Math.min(SIM.line+1,SIM.lines.length)} of ${SIM.lines.length}`;
+  const lg=$('covLegend');
+  if(layer==='depth')lg.innerHTML=`<span>Shallow ${W.min.toFixed(1)} m</span>${grad(RAMP.map(r=>r[1]))}<span>Deep ${W.max.toFixed(1)} m</span><span>Hill-shaded so artefacts stand out</span>`;
+  else if(layer==='err')lg.innerHTML=`<span>Too shallow −${tvu.toFixed(2)} m</span>${grad([[76,155,232],[34,49,61],[242,155,66]])}<span>Too deep +${tvu.toFixed(2)} m</span><span>Scale = IHO ${tvuF.n} TVU at ${W.D} m</span>`;
+  else lg.innerHTML=`<span><i style="background:#EF6B73"></i>Below threshold</span>${grad([ramp(.95),ramp(.5),ramp(.1)])}<span>Higher SNR</span>`;
+}
+function grad(cols){return `<span style="display:inline-block;width:110px;height:10px;border-radius:2px;background:linear-gradient(90deg,${cols.map(c=>`rgb(${c.map(Math.round).join(',')})`).join(',')})"></span>`;}
+function niceStep(v){const p=Math.pow(10,Math.floor(L10(v)));const m=v/p;return (m<1.5?1:m<3.5?2:m<7.5?5:10)*p;}
+function fmtM(v){return v>=1000?(v/1000).toFixed(v>=10000?0:1)+' km':Math.round(v)+' m';}
+
+/* ---------------- ping section ---------------- */
+function drawPing(){
+  const {ctx,w,h}=cv('cvPing');ctx.clearRect(0,0,w,h);
+  const P=SIM.last;const D=W.D,half=Math.max(SIM.swath*0.62,D*1.2);
+  const zTop=-Math.max(4,D*0.08),zBot=(W.max||D)*1.08,padL=44,padB=20;
+  const X=x=>padL+(x+half)/(2*half)*(w-padL-8),Z=z=>8+(z-zTop)/(zBot-zTop)*(h-padB-8);
+  const g=ctx.createLinearGradient(0,Z(0),0,Z(zBot));g.addColorStop(0,'#0F3448');g.addColorStop(1,'#08131C');ctx.fillStyle=g;ctx.fillRect(padL,Z(0),w-padL-8,Z(zBot)-Z(0));
+  ctx.strokeStyle='#21384A';ctx.lineWidth=1;const st=niceStep((zBot)/5);
+  for(let z=0;z<=zBot;z+=st){ctx.beginPath();ctx.moveTo(padL,Z(z));ctx.lineTo(w-8,Z(z));ctx.stroke();txt(ctx,z.toFixed(0),padL-6,Z(z)+4,null,'right');}
+  txt(ctx,'depth m',4,12);
+  const sx=P?P.shipX:SIM.lines[SIM.line]||0,sg=P?P.sg:1;const yb=SIM.y;
+  ctx.beginPath();for(let k=0;k<=160;k++){const xl=-half+2*half*k/160;const z=depthAt(sx+sg*xl,yb);k?ctx.lineTo(X(xl),Z(z)):ctx.moveTo(X(xl),Z(z));}
+  ctx.lineTo(X(half),Z(zBot));ctx.lineTo(X(-half),Z(zBot));ctx.closePath();ctx.fillStyle='#2A2A22';ctx.fill();ctx.strokeStyle='#8CA3B3';ctx.lineWidth=1.5;ctx.stroke();
+  if(!P){txt(ctx,'Press “Start logging” to run the survey',w/2,h/2,'#E2EBF0','center','13px IBM Plex Sans, sans-serif');return;}
+  ctx.strokeStyle='rgba(63,193,201,.35)';ctx.lineWidth=1;
+  for(const s of P.out){if(!s.pts)continue;ctx.beginPath();s.pts.forEach((q,i)=>i?ctx.lineTo(X(q[0]),Z(q[1])):ctx.moveTo(X(q[0]),Z(q[1])));ctx.stroke();}
+  for(const s of P.out){ctx.fillStyle=s.ok?'#5ED39A':'#EF6B73';ctx.beginPath();ctx.arc(X(s.mx),Z(s.mz),s.ok?2:1.6,0,7);ctx.fill();}
+  // vessel cross-section
+  const hw=S.hull.B/2,dr=S.hull.draft,fb=S.hull.freeboard,cx=X(P.Tt.y),r=P.m.r;
+  const pts=[[-hw,-fb],[hw,-fb],[hw*0.9,dr*0.6],[0.2,dr],[-0.2,dr],[-hw*0.9,dr*0.6]].map(([y,z])=>{const q=rot(0,y,z-sens('imu').z+sens('wl').z,r,0);return [q.y,q.z+(sens('imu').z-sens('wl').z)+P.m.h];});
+  ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(X(q[0]),Z(q[1])):ctx.moveTo(X(q[0]),Z(q[1])));ctx.closePath();ctx.fillStyle='#C9D4DB';ctx.fill();
+  ctx.fillStyle='#3FC1C9';ctx.beginPath();ctx.arc(X(P.Tt.y),Z(P.z0t),3,0,7);ctx.fill();
+  ctx.strokeStyle='#7AA7C7';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(padL,Z(0));ctx.lineTo(w-8,Z(0));ctx.stroke();ctx.setLineDash([]);
+  txt(ctx,`roll ${(P.m.r/deg).toFixed(1)}°  pitch ${(P.m.p/deg).toFixed(1)}°  heave ${P.m.h.toFixed(2)} m`,w-10,Z(0)-6,'#E2EBF0','right');
+  txt(ctx,'port',padL+4,h-6);txt(ctx,'starboard',w-12,h-6,null,'right');
+}
+
+/* ---------------- stats & alerts ---------------- */
+function updateAcqStats(){
+  const st=SIM.stats,tvuF=IHO[S.survey.order],rate=pingRateEff(),v=S.survey.speed*0.5144;
+  const foot=Math.max(S.env.depth-txDraft(),1)*S.sonar.txBW*deg,vmax=foot*rate/0.5144;
+  const comp=st.n?st.ok/st.n*100:null,rms=st.n?Math.sqrt(st.sq/st.n):null;
+  const valid=st.tot?st.valid/st.tot*100:null;
+  $('acqStats').innerHTML=[
+    ['Line',`${Math.min(SIM.line+1,SIM.lines.length)} / ${SIM.lines.length}`],
+    ['Line spacing',fmtM(SIM.spacing)],
+    ['Expected swath',`${fmtM(SIM.swath)} · ${(SIM.swath/Math.max(S.env.depth,1)).toFixed(1)}× depth`],
+    ['Ping rate',`${rate.toFixed(1)} Hz`],
+    ['Along-track spacing',`${(v/rate).toFixed(2)} m`],
+    ['Max speed, 100% along-track',`${vmax.toFixed(1)} kn`],
+    ['Valid beams',valid==null?'–':valid.toFixed(0)+' %'],
+    ['RMS depth error',rms==null?'–':rms.toFixed(3)+' m'],
+    ['Max |error|',st.n?st.max.toFixed(2)+' m':'–'],
+    [`IHO ${tvuF.n} TVU`,comp==null?'–':`<span class="pill ${comp>=95?'ok':'bad'}">${comp.toFixed(1)} % pass</span>`]
+  ].map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('');
+  const al=[];const e=S.err;
+  if(S.survey.speed>vmax)al.push(`Speed ${S.survey.speed} kn is above ${vmax.toFixed(1)} kn: gaps will open along track between pings. Slow down or increase the ping rate.`);
+  if(Math.abs(e.rollBias)>0)al.push('Roll bias: outer beams tilt up on one side and down on the other. On adjacent lines run in opposite directions the overlap does not match. A patch test over flat seabed measures it.');
+  if(e.lat>0)al.push('Latency between motion data and sonar time: roll is applied at the wrong moment, so the swath wobbles and the outer beams show along-track ripples.');
+  if(e.svp!=='correct'||e.svs!==0)al.push('Sound velocity error: rays bend differently from what the software assumes. The seabed looks curved across the swath (a “smile” or “frown”). Take a fresh SVP cast and check the probe at the transducer.');
+  if(e.txY||e.txZ)al.push('Wrong transducer lever arm: roll and pitch create induced-heave errors and a constant depth bias if the vertical offset is wrong.');
+  if(e.gnssX)al.push('GNSS lever arm error along track: features appear shifted forward or back, in opposite directions on reciprocal lines.');
+  if(maxValidAngle()<S.sonar.maxA-5)al.push(`Signal limits the swath to ±${maxValidAngle().toFixed(0)}° at this depth. See the Sound & SNR tab for what to change.`);
+  $('acqAlerts').innerHTML=al.map(a=>`<div class="alert">${a}</div>`).join('');
+}
+
+/* ---------------- vessel views ---------------- */
+let drag=null;
+function vesselFrame(w,h,mode){const H=S.hull;const xmin=-H.rpFromStern-2,xmax=H.L-H.rpFromStern+2;
+  const vmin=mode==='plan'?-H.B/2-2.5:-Math.max(9,H.freeboard+7),vmax=mode==='plan'?H.B/2+2.5:H.draft+sens('wl').z+3;
+  const sc=Math.min((w-30)/(xmax-xmin),(h-26)/(vmax-vmin));const ox=15+((w-30)-(xmax-xmin)*sc)/2,oy=13+((h-26)-(vmax-vmin)*sc)/2;
+  return {X:x=>ox+(x-xmin)*sc,V:v=>oy+(v-vmin)*sc,sc,inv:(px,py)=>[(px-ox)/sc+xmin,(py-oy)/sc+vmin]};}
+function drawVessel(){
+  const H=S.hull,wlz=sens('wl').z;
+  {const {ctx,w,h}=cv('cvPlan');ctx.clearRect(0,0,w,h);const F=vesselFrame(w,h,'plan');const st=-H.rpFromStern,bw=H.L-H.rpFromStern,b=H.B/2;
+    ctx.beginPath();ctx.moveTo(F.X(st),F.V(-b*0.92));ctx.lineTo(F.X(st+H.L*0.62),F.V(-b));ctx.quadraticCurveTo(F.X(st+H.L*0.9),F.V(-b*0.9),F.X(bw),F.V(0));
+    ctx.quadraticCurveTo(F.X(st+H.L*0.9),F.V(b*0.9),F.X(st+H.L*0.62),F.V(b));ctx.lineTo(F.X(st),F.V(b*0.92));ctx.closePath();ctx.fillStyle='#16303F';ctx.fill();ctx.strokeStyle='#5D7D90';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle='#1E3D4F';ctx.fillRect(F.X(st+H.L*0.18),F.V(-b*0.6),(H.L*0.32)*F.sc,b*1.2*F.sc);
+    ctx.strokeStyle='#2C4A5C';ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(F.X(st-1),F.V(0));ctx.lineTo(F.X(bw+1),F.V(0));ctx.stroke();ctx.setLineDash([]);
+    axes(ctx,F,'plan');dims(ctx,F,'plan');SENS.forEach(s=>{if(s.id==='wl')return;mark(ctx,F.X(s.x),F.V(s.y),s);});
+    txt(ctx,'BOW →',w-12,h-6,null,'right');txt(ctx,'starboard ↓',12,h-6);}
+  {const {ctx,w,h}=cv('cvProf');ctx.clearRect(0,0,w,h);const F=vesselFrame(w,h,'prof');const st=-H.rpFromStern,bw=H.L-H.rpFromStern;
+    const deck=wlz-H.freeboard,keel=wlz+H.draft;
+    ctx.fillStyle='#0F3448';ctx.fillRect(F.X(st-2),F.V(wlz),(H.L+4)*F.sc,h);
+    ctx.beginPath();ctx.moveTo(F.X(st),F.V(deck));ctx.lineTo(F.X(bw),F.V(deck-0.6));ctx.quadraticCurveTo(F.X(bw-H.L*0.08),F.V(keel-H.draft*0.3),F.X(bw-H.L*0.22),F.V(keel));
+    ctx.lineTo(F.X(st+H.L*0.05),F.V(keel));ctx.lineTo(F.X(st),F.V(wlz+H.draft*0.4));ctx.closePath();ctx.fillStyle='#C9D4DB';ctx.fill();
+    ctx.fillStyle='#9FB0BB';ctx.fillRect(F.X(st+H.L*0.18),F.V(deck-3),H.L*0.32*F.sc,3*F.sc);ctx.fillRect(F.X(st+H.L*0.24),F.V(deck-5.2),H.L*0.16*F.sc,2.2*F.sc);
+    const g1=sens('gnss1');ctx.strokeStyle='#9FB0BB';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(F.X(g1.x),F.V(deck-5.2));ctx.lineTo(F.X(g1.x),F.V(g1.z));ctx.stroke();
+    ctx.strokeStyle='#7AA7C7';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(F.X(st-2),F.V(wlz));ctx.lineTo(F.X(bw+2),F.V(wlz));ctx.stroke();ctx.setLineDash([]);
+    txt(ctx,`waterline Z ${wlz.toFixed(2)}`,F.X(bw+1.5),F.V(wlz)-5,'#7AA7C7','right');
+    axes(ctx,F,'prof');dims(ctx,F,'prof');SENS.forEach(s=>{if(s.id==='wl')return;mark(ctx,F.X(s.x),F.V(s.z),s);});
+    txt(ctx,'BOW →',w-12,h-6,null,'right');txt(ctx,'Z down ↓',12,h-6);}
+}
+function axes(ctx,F,mode){const x0=F.X(0),y0=F.V(0);ctx.strokeStyle='#E2EBF0';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x0+34,y0);ctx.moveTo(x0,y0);ctx.lineTo(x0,y0+34);ctx.stroke();
+  txt(ctx,'X',x0+38,y0+4,'#E2EBF0');txt(ctx,mode==='plan'?'Y':'Z',x0-4,y0+46,'#E2EBF0');}
+function dims(ctx,F,mode){const s=sens(S.sel);if(!s||s.fixed||s.id==='wl')return;const v=mode==='plan'?s.y:s.z;
+  ctx.strokeStyle='#F2A541';ctx.lineWidth=1;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(F.X(0),F.V(0));ctx.lineTo(F.X(s.x),F.V(0));ctx.lineTo(F.X(s.x),F.V(v));ctx.stroke();ctx.setLineDash([]);
+  const c=convVals(s);const lab=convLabels();const ax=mode==='plan'?['x','y']:['x','z'];
+  txt(ctx,`${s.x.toFixed(2)} m`,(F.X(0)+F.X(s.x))/2,F.V(0)+(v<0?14:-6),'#F2A541','center');
+  txt(ctx,`${(mode==='plan'?s.y:s.z).toFixed(2)} m`,F.X(s.x)+6,(F.V(0)+F.V(v))/2+4,'#F2A541');}
+function mark(ctx,x,y,s){const sel=S.sel===s.id;ctx.fillStyle=s.col;ctx.strokeStyle=sel?'#F2A541':'#09141D';ctx.lineWidth=sel?2.5:1.5;
+  ctx.beginPath();if(s.id==='rp'){ctx.moveTo(x-6,y);ctx.lineTo(x+6,y);ctx.moveTo(x,y-6);ctx.lineTo(x,y+6);ctx.strokeStyle='#E2EBF0';ctx.stroke();ctx.beginPath();ctx.arc(x,y,3,0,7);ctx.fill();return;}
+  ctx.arc(x,y,sel?6:5,0,7);ctx.fill();ctx.stroke();}
+function hookDrag(id,mode){const c=$(id);
+  const pick=e=>{const r=c.getBoundingClientRect();const px=e.clientX-r.left,py=e.clientY-r.top;const F=vesselFrame(r.width,r.height,mode);
+    let best=null,bd=14;SENS.forEach(s=>{if(s.fixed||s.id==='wl')return;const d=Math.hypot(F.X(s.x)-px,F.V(mode==='plan'?s.y:s.z)-py);if(d<bd){bd=d;best=s;}});return {best,F,px,py};};
+  c.addEventListener('pointerdown',e=>{const {best}=pick(e);if(best){drag={s:best,mode,id};S.sel=best.id;c.setPointerCapture(e.pointerId);renderTable();drawVessel();}});
+  c.addEventListener('pointermove',e=>{if(!drag||drag.id!==id)return;const r=c.getBoundingClientRect();const F=vesselFrame(r.width,r.height,mode);const [x,v]=F.inv(e.clientX-r.left,e.clientY-r.top);
+    drag.s.x=Math.round(x*100)/100;if(mode==='plan')drag.s.y=Math.round(v*100)/100;else drag.s.z=Math.round(v*100)/100;renderTable();drawVessel();refreshDerived();});
+  c.addEventListener('pointerup',()=>{if(drag){drag=null;geometryChanged();}});}
+
+/* conventions */
+function convLabels(){return {kongsberg:['X fwd','Y stbd','Z down'],caris:['X stbd','Y fwd','Z down'],qinsy:['X stbd','Y fwd','Z up']}[S.conv];}
+function convVals(s){const {x,y,z}=s;return {kongsberg:[x,y,z],caris:[y,x,z],qinsy:[y,x,-z]}[S.conv];}
+function fromConv(a,b,c){return {kongsberg:[a,b,c],caris:[b,a,c],qinsy:[b,a,-c]}[S.conv];}
+function renderTable(){const lab=convLabels();
+  let h=`<tr><th>Sensor</th><th class="num">${lab[0]}</th><th class="num">${lab[1]}</th><th class="num">${lab[2]}</th></tr>`;
+  SENS.forEach(s=>{const v=s.id==='wl'?null:convVals(s);const sel=S.sel===s.id?' class="sel"':'';
+    if(s.id==='wl'){const zi=S.conv==='qinsy'?-s.z:s.z;const col=S.conv==='kongsberg'?2:2;
+      h+=`<tr${sel} data-id="wl"><td><span class="dot" style="background:${s.col}"></span>${s.name}</td><td class="num">–</td><td class="num">–</td><td class="num"><input id="o-wl-2" data-id="wl" data-k="2" value="${zi.toFixed(2)}" inputmode="decimal" aria-label="Waterline vertical offset"></td></tr>`;return;}
+    h+=`<tr${sel} data-id="${s.id}"><td><span class="dot" style="background:${s.col}"></span>${s.name}</td>`+[0,1,2].map(k=>s.fixed?`<td class="num">0.00</td>`:`<td class="num"><input id="o-${s.id}-${k}" data-id="${s.id}" data-k="${k}" value="${v[k].toFixed(2)}" inputmode="decimal" aria-label="${s.name} ${lab[k]}"></td>`).join('')+'</tr>';});
+  $('offTable').innerHTML=h;}
+$('offTable').addEventListener('click',e=>{const tr=e.target.closest('tr[data-id]');if(tr){S.sel=tr.dataset.id;[...$('offTable').querySelectorAll('tr')].forEach(r=>r.classList.toggle('sel',r.dataset.id===S.sel));drawVessel();}});
+$('offTable').addEventListener('change',e=>{const i=e.target;if(!i.dataset.id)return;const s=sens(i.dataset.id);const val=parseFloat(i.value);if(isNaN(val)){renderTable();return;}
+  if(s.id==='wl'){s.z=S.conv==='qinsy'?-val:val;}else{const v=convVals(s);v[+i.dataset.k]=val;const [x,y,z]=fromConv(v[0],v[1],v[2]);s.x=x;s.y=y;s.z=z;}
+  drawVessel();geometryChanged();});
+function refreshDerived(){
+  const imu=sens('imu'),tx=sens('tx'),g1=sens('gnss1'),g2=sens('gnss2'),wl=sens('wl');
+  const L=[tx.x-imu.x,tx.y-imu.y,tx.z-imu.z],G1=[g1.x-imu.x,g1.y-imu.y,g1.z-imu.z];
+  const bl=Math.hypot(g2.x-g1.x,g2.y-g1.y,g2.z-g1.z),ang=Math.atan2(g2.y-g1.y,g2.x-g1.x)/deg;
+  const f=a=>a.map(v=>v.toFixed(2)).join(' / ');
+  $('derived').innerHTML=[
+    ['Transducer draft below waterline',`${txDraft().toFixed(2)} m`],
+    ['IMU → transmitter (X/Y/Z)',f(L)],['Length',`${Math.hypot(...L).toFixed(2)} m`],
+    ['IMU → GNSS 1 (X/Y/Z)',f(G1)],
+    ['GNSS baseline',`${bl.toFixed(2)} m`],['Baseline angle to centreline',`${ang.toFixed(1)}°`]
+  ].map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('');
+  const r=+$('tRoll').value*deg,p=+$('tPitch').value*deg;$('tRollO').textContent=(+$('tRoll').value).toFixed(1)+'°';$('tPitchO').textContent=(+$('tPitch').value).toFixed(1)+'°';
+  const q=rot(L[0],L[1],L[2],r,p);const ih=q.z-L[2];
+  const dq=rot(L[0],L[1]+0.05,L[2],r,p);const ihe=(dq.z-(L[2]))-ih;
+  $('induced').innerHTML=[['Induced heave at transmitter',`${(ih*100).toFixed(1)} cm`],['Horizontal shift of transmitter',`${(Math.hypot(q.x-L[0],q.y-L[1])*100).toFixed(1)} cm`],['Error if Y lever arm is 5 cm off',`${(ihe*100).toFixed(1)} cm`]]
+    .map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('');
+}
+function hullControls(){const defs=[['L','Length overall',10,90,0.5],['B','Beam',3,20,0.1],['rpFromStern','RP from stern',1,80,0.5],['draft','Hull draft',0.5,8,0.1],['freeboard','Freeboard',0.5,6,0.1]];
+  $('hullCtl').innerHTML=defs.map(([k,l,a,b,s])=>`<div class="ctl"><label for="h-${k}">${l}</label><output id="h-${k}O">${S.hull[k]} m</output><input type="range" id="h-${k}" min="${a}" max="${b}" step="${s}" value="${S.hull[k]}"></div>`).join('');
+  defs.forEach(([k])=>$('h-'+k).addEventListener('input',e=>{S.hull[k]=+e.target.value;$('h-'+k+'O').textContent=S.hull[k]+' m';drawVessel();}));}
+let geoT=null;function geometryChanged(){refreshDerived();clearTimeout(geoT);geoT=setTimeout(()=>{refreshAll(true);},200);}
+
+/* ---------------- signal tab ---------------- */
+function drawSignal(){
+  const D=Math.max(S.env.depth-txDraft(),1),so=S.sonar;
+  const c0=mack(S.env.Ts,S.env.S,0),va=maxValidAngle(),t=tau();
+  $('sigStats').innerHTML=[
+    ['Sound speed at transducer',`${cAt(PT,Math.max(txDraft(),0.1)).toFixed(1)} m/s`],['Mean sound speed',`${CMEAN.toFixed(1)} m/s`],
+    ['Absorption at '+so.f+' kHz',`${ALPHA.toFixed(1)} dB/km`],['Wavelength',`${(c0/(so.f*1000)*1000).toFixed(1)} mm`],
+    ['Pulse length',`${t} µs${so.autoTau?' (auto)':''}`],['Range resolution',`${(CMEAN*t*1e-6/2*100).toFixed(1)} cm`],
+    ['Usable swath',`±${va.toFixed(0)}° · ${fmtM(2*D*Math.tan(va*deg))}`],['Max ping rate (depth)',`${pingRateEff().toFixed(1)} Hz`]
+  ].map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('');
+  // SNR chart
+  {const {ctx,w,h}=cv('cvSnr');ctx.clearRect(0,0,w,h);const pl=40,pr=10,pt=10,pb=24,amax=Math.max(so.maxA,60)+5;
+    const pts=[];for(let a=0;a<=amax;a+=1){pts.push([a,budget(D/Math.cos(a*deg),a)]);}
+    let ymin=Math.min(...pts.map(p=>Math.min(p[1].SNR,p[1].NL))),ymax=Math.max(...pts.map(p=>Math.max(p[1].EL,p[1].SNR)));ymin=Math.floor(Math.min(ymin,-10)/10)*10;ymax=Math.ceil((ymax+5)/10)*10;
+    const X=a=>pl+a/amax*(w-pl-pr),Y=v=>pt+(ymax-v)/(ymax-ymin)*(h-pt-pb);
+    ctx.fillStyle='rgba(239,107,115,.08)';ctx.fillRect(X(Math.min(va,so.maxA)),pt,X(amax)-X(Math.min(va,so.maxA)),h-pt-pb);
+    ctx.strokeStyle='#21384A';ctx.lineWidth=1;for(let v=ymin;v<=ymax;v+=10){ctx.beginPath();ctx.moveTo(pl,Y(v));ctx.lineTo(w-pr,Y(v));ctx.stroke();txt(ctx,v,pl-5,Y(v)+4,null,'right');}
+    for(let a=0;a<=amax;a+=10){txt(ctx,a+'°',X(a),h-8,null,'center');}
+    ctx.strokeStyle='#8CA3B3';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(X(so.maxA),pt);ctx.lineTo(X(so.maxA),h-pb);ctx.stroke();ctx.setLineDash([]);txt(ctx,'sonar limit',X(so.maxA)-4,pt+12,null,'right');
+    const line=(k,col,wd)=>{ctx.strokeStyle=col;ctx.lineWidth=wd||2;ctx.beginPath();pts.forEach(([a,b],i)=>{const v=k==='DT'?so.DT:b[k];i?ctx.lineTo(X(a),Y(v)):ctx.moveTo(X(a),Y(v));});ctx.stroke();};
+    line('EL','#3FC1C9');line('NL','#F2A541');line('SNR','#5ED39A',2.5);ctx.setLineDash([6,4]);line('DT','#EF6B73',1.5);ctx.setLineDash([]);
+    const sa=+$('sigAngle').value;ctx.strokeStyle='rgba(226,235,240,.5)';ctx.beginPath();ctx.moveTo(X(sa),pt);ctx.lineTo(X(sa),h-pb);ctx.stroke();
+    txt(ctx,'dB',4,12);}
+  // SVP chart
+  {const {ctx,w,h}=cv('cvSvp');ctx.clearRect(0,0,w,h);const zmax=Math.min(W.max*1.05,PT.n*PT.dz);const pl=44,pr=12,pt=22,pb=12;
+    let cmin=1e9,cmax=-1e9;for(let z=0;z<=zmax;z+=zmax/100){[cAt(PT,z),cAt(PA,z)].forEach(c=>{cmin=Math.min(cmin,c);cmax=Math.max(cmax,c);});}cmin=Math.floor(cmin-2);cmax=Math.ceil(cmax+2);
+    const X=c=>pl+(c-cmin)/(cmax-cmin)*(w-pl-pr),Z=z=>pt+z/zmax*(h-pt-pb);
+    ctx.strokeStyle='#21384A';const zs=niceStep(zmax/5);for(let z=0;z<=zmax;z+=zs){ctx.beginPath();ctx.moveTo(pl,Z(z));ctx.lineTo(w-pr,Z(z));ctx.stroke();txt(ctx,z.toFixed(0),pl-5,Z(z)+4,null,'right');}
+    txt(ctx,cmin+' m/s',pl,14);txt(ctx,cmax+' m/s',w-pr,14,null,'right');
+    const tmin=2,tmax=32;const XT=T=>pl+(T-tmin)/(tmax-tmin)*(w-pl-pr);
+    const plot=(fn,col,wd,dash)=>{ctx.strokeStyle=col;ctx.lineWidth=wd;ctx.setLineDash(dash||[]);ctx.beginPath();for(let k=0;k<=160;k++){const z=zmax*k/160;const x=fn(z);k?ctx.lineTo(x,Z(z)):ctx.moveTo(x,Z(z));}ctx.stroke();ctx.setLineDash([]);};
+    plot(z=>XT(tempAt(z)),'#8CA3B3',1.2,[2,3]);plot(z=>X(cAt(PA,z)),'#F2A541',2,[6,4]);plot(z=>X(cAt(PT,z)),'#3FC1C9',2.2);
+    txt(ctx,'depth m',4,h-2);}
+  // budget table
+  const a=+$('sigAngle').value;$('angO').textContent=a+'°';const b=budget(D/Math.cos(a*deg),a);
+  const r=(k,v,n,cls)=>`<tr><td>${k}</td><td class="num ${cls||''}">${typeof v==='number'?(v>0?'+':'')+v.toFixed(1):v}</td><td style="white-space:normal;color:var(--muted)">${n||''}</td></tr>`;
+  $('budget').innerHTML=`<tr><th>Term</th><th class="num">dB</th><th>Meaning</th></tr>`+
+    r('Source level SL',so.SL,'Acoustic power the transmitter puts into the water')+
+    r('Spreading loss −2×20 log R',-2*b.spread,`Slant range ${(D/Math.cos(a*deg)).toFixed(0)} m, out and back`)+
+    r('Absorption −2αR',-2*b.absL,`${ALPHA.toFixed(1)} dB/km at ${so.f} kHz`)+
+    r('Aeration (bubbles)',-2*b.bub,`Sea state ${S.env.ss}`)+
+    r('Seabed backscatter BS',b.BS,`${SEABED[S.env.seabed].n} at ${a}° incidence`)+
+    r('Ensonified area 10 log A',10*L10(b.A),`${b.A.toFixed(2)} m², ${b.areaMode}`)+
+    `<tr><td><b>Echo level EL</b></td><td class="num"><b>${b.EL.toFixed(1)}</b></td><td></td></tr>`+
+    r('Noise spectrum level',b.nz.tot,`thermal ${b.nz.th.toFixed(0)}, wind ${b.nz.wind.toFixed(0)}, ships ${b.nz.ship.toFixed(0)}, own vessel ${b.nz.self.toFixed(0)}`)+
+    r('Bandwidth +10 log B',10*L10(b.B),`${(b.B/1000).toFixed(1)} kHz from the ${tau()} µs pulse`)+
+    r('Receive directivity −DI',-b.DI,`${so.rxBW}° receive beam rejects noise from other directions`)+
+    `<tr><td><b>Noise level NL</b></td><td class="num"><b>${b.NL.toFixed(1)}</b></td><td></td></tr>`+
+    r('Processing gain',so.gain,'Matched filtering and bottom detection')+
+    `<tr><td><b>SNR = EL − NL + gain</b></td><td class="num"><b class="${b.SNR>=so.DT?'up':'down'}">${b.SNR.toFixed(1)}</b></td><td><span class="pill ${b.SNR>=so.DT?'ok':'bad'}">${b.SNR>=so.DT?'Detected':'Below '+so.DT+' dB threshold'}</span></td></tr>`;
+}
+const FACTS=[
+  ['Frequency ↑','down','Absorption rises fast with frequency, so high-frequency systems lose range. They give finer beams and resolution in return.'],
+  ['Depth / slant range ↑','down','Spreading loss grows with 40 log R two-way, plus absorption. Outer beams travel furthest, so they fail first.'],
+  ['Beam angle ↑','down','Longer range, weaker backscatter at grazing angles and a smaller pulse-limited footprint.'],
+  ['Pulse length ↑','up','More energy and a narrower noise bandwidth, but coarser range resolution. Systems lengthen the pulse in deeper water.'],
+  ['Source level ↑','up','More transmitted power. Limited by cavitation near the face and by the hardware.'],
+  ['Narrower receive beam','up','Higher directivity index rejects more noise. Also sharper footprint.'],
+  ['Harder seabed','up','Rock and gravel scatter more energy back than mud and soft clay.'],
+  ['Sea state ↑','down','More wind noise and bubbles swept under the hull, which block the transducer. Expect dropouts heading into the sea.'],
+  ['Vessel speed ↑','down','Flow, propeller and machinery noise rise steeply. Often the main noise source on low-frequency systems.'],
+  ['Shipping traffic ↑','down','Mostly affects lower frequencies (tens of kHz and below).'],
+  ['Warm, salty water','down','At high frequency, absorption increases with temperature and salinity.']
+];
+function renderFacts(){$('facts').innerHTML='<tr><th>Change</th><th>SNR</th><th>Why</th></tr>'+FACTS.map(([a,d,w])=>`<tr><td>${a}</td><td class="${d}">${d==='up'?'↑ better':'↓ worse'}</td><td>${w}</td></tr>`).join('');}
+
+/* ---------------- settings rail ---------------- */
+const CTL=[
+  {sec:'Multibeam',items:[
+    {id:'preset',type:'select',label:'Sonar model',opts:Object.entries(PRESETS).map(([k,v])=>[k,v.name]),get:()=>S.sonar.preset,set:v=>{S.sonar.preset=v;const p=PRESETS[v];if(v!=='custom')Object.assign(S.sonar,{f:p.f,SL:p.SL,txBW:p.txBW,rxBW:p.rxBW,nBeams:p.nBeams,maxA:p.maxA,ping:p.ping});},reset:true},
+    {id:'f',label:'Frequency',min:10,max:500,step:1,u:' kHz',get:()=>S.sonar.f,set:v=>{S.sonar.f=v;S.sonar.preset='custom';}},
+    {id:'SL',label:'Source level',min:190,max:240,step:1,u:' dB',get:()=>S.sonar.SL,set:v=>{S.sonar.SL=v;S.sonar.preset='custom';}},
+    {id:'autoTau',type:'check',label:'Pulse length set by depth (auto)',get:()=>S.sonar.autoTau,set:v=>S.sonar.autoTau=v},
+    {id:'tau',label:'Pulse length (manual)',min:10,max:5000,step:5,u:' µs',get:()=>S.sonar.tau,set:v=>{S.sonar.tau=v;S.sonar.autoTau=false;}},
+    {id:'txBW',label:'Transmit beam (along-track)',min:0.25,max:4,step:0.25,u:'°',get:()=>S.sonar.txBW,set:v=>{S.sonar.txBW=v;S.sonar.preset='custom';}},
+    {id:'rxBW',label:'Receive beam (across-track)',min:0.25,max:4,step:0.25,u:'°',get:()=>S.sonar.rxBW,set:v=>{S.sonar.rxBW=v;S.sonar.preset='custom';}},
+    {id:'maxA',label:'Max beam angle (each side)',min:30,max:80,step:1,u:'°',get:()=>S.sonar.maxA,set:v=>S.sonar.maxA=v,reset:true},
+    {id:'nBeams',label:'Beams per ping',min:32,max:512,step:32,u:'',get:()=>S.sonar.nBeams,set:v=>S.sonar.nBeams=v},
+    {id:'ping',label:'Requested ping rate',min:0.5,max:50,step:0.5,u:' Hz',get:()=>S.sonar.ping,set:v=>S.sonar.ping=v},
+    {id:'gain',label:'Processing gain',min:0,max:25,step:1,u:' dB',get:()=>S.sonar.gain,set:v=>S.sonar.gain=v},
+    {id:'DT',label:'Detection threshold',min:0,max:20,step:1,u:' dB',get:()=>S.sonar.DT,set:v=>S.sonar.DT=v}
+  ]},
+  {sec:'Water and seabed',items:[
+    {id:'depth',label:'Survey depth',min:5,max:3000,step:5,u:' m',get:()=>S.env.depth,set:v=>S.env.depth=v,reset:true,log:true},
+    {id:'model',type:'select',label:'Seabed shape',opts:[['flat','Flat'],['slope','Slope and mound'],['waves','Slope, mound and sand waves']],get:()=>S.env.model,set:v=>S.env.model=v,reset:true},
+    {id:'seabed',type:'select',label:'Seabed type',opts:Object.entries(SEABED).map(([k,v])=>[k,`${v.n} (${v.mu} dB)`]),get:()=>S.env.seabed,set:v=>S.env.seabed=v},
+    {id:'Ts',label:'Surface temperature',min:2,max:32,step:0.5,u:' °C',get:()=>S.env.Ts,set:v=>S.env.Ts=v,prof:true},
+    {id:'Tb',label:'Temperature below thermocline',min:2,max:30,step:0.5,u:' °C',get:()=>S.env.Tb,set:v=>S.env.Tb=v,prof:true},
+    {id:'mld',label:'Mixed layer depth',min:0,max:200,step:1,u:' m',get:()=>S.env.mld,set:v=>S.env.mld=v,prof:true},
+    {id:'thick',label:'Thermocline thickness',min:5,max:300,step:5,u:' m',get:()=>S.env.thick,set:v=>S.env.thick=v,prof:true},
+    {id:'Sal',label:'Salinity',min:30,max:41,step:0.1,u:' PSU',get:()=>S.env.S,set:v=>S.env.S=v,prof:true},
+    {id:'ss',label:'Sea state',min:0,max:6,step:1,u:'',fmt:v=>SS_NAME[v],get:()=>S.env.ss,set:v=>S.env.ss=v},
+    {id:'ship',type:'select',label:'Shipping traffic',opts:[['low','Low'],['med','Moderate'],['high','Heavy']],get:()=>S.env.ship,set:v=>S.env.ship=v}
+  ]},
+  {sec:'Survey',items:[
+    {id:'speed',label:'Vessel speed',min:1,max:16,step:0.5,u:' kn',get:()=>S.survey.speed,set:v=>S.survey.speed=v},
+    {id:'overlap',label:'Line overlap',min:0,max:60,step:5,u:' %',get:()=>S.survey.overlap,set:v=>S.survey.overlap=v,reset:true},
+    {id:'play',label:'Playback speed',min:0.25,max:4,step:0.25,u:'×',get:()=>S.survey.play,set:v=>S.survey.play=v},
+    {id:'order',type:'select',label:'IHO S-44 order for checks',opts:Object.entries(IHO).map(([k,v])=>[k,`${v.n} (a ${v.a} m, b ${v.b})`]),get:()=>S.survey.order,set:v=>S.survey.order=v}
+  ]},
+  {sec:'What-if errors',hint:'Introduce one error at a time while logging and watch the Error layer.',items:[
+    {id:'svp',type:'select',label:'Sound speed profile in processing',opts:[['correct','Fresh cast (correct)'],['stale','Old cast (thermocline moved)'],['const','None: constant surface value']],get:()=>S.err.svp,set:v=>S.err.svp=v,prof:true},
+    {id:'svs',label:'Surface sound speed probe error',min:-10,max:10,step:0.5,u:' m/s',get:()=>S.err.svs,set:v=>S.err.svs=v},
+    {id:'rollBias',label:'Roll bias (alignment)',min:-1,max:1,step:0.02,u:'°',get:()=>S.err.rollBias,set:v=>S.err.rollBias=v},
+    {id:'pitchBias',label:'Pitch bias',min:-2,max:2,step:0.05,u:'°',get:()=>S.err.pitchBias,set:v=>S.err.pitchBias=v},
+    {id:'lat',label:'Motion data latency',min:0,max:200,step:5,u:' ms',get:()=>S.err.lat,set:v=>S.err.lat=v},
+    {id:'txY',label:'Transducer Y lever arm error',min:-0.5,max:0.5,step:0.01,u:' m',get:()=>S.err.txY,set:v=>S.err.txY=v},
+    {id:'txZ',label:'Transducer Z (draft) error',min:-0.5,max:0.5,step:0.01,u:' m',get:()=>S.err.txZ,set:v=>S.err.txZ=v},
+    {id:'gnssX',label:'GNSS X lever arm error',min:-5,max:5,step:0.1,u:' m',get:()=>S.err.gnssX,set:v=>S.err.gnssX=v}
+  ]}
+];
+function fmtVal(it,v){if(it.fmt)return it.fmt(v);return (Math.abs(v)<10&&it.step<1?(+v).toFixed(it.step<0.1?2:1):v)+(it.u||'');}
+function renderRail(){
+  let h='';CTL.forEach((sec,si)=>{h+=`<details class="sec" ${si<2||sec.sec==='What-if errors'?'open':''}><summary>${sec.sec}</summary>${sec.hint?`<p class="hint">${sec.hint}</p>`:''}`;
+    sec.items.forEach(it=>{const v=it.get();
+      if(it.type==='select')h+=`<div class="ctl"><label for="c-${it.id}">${it.label}</label><span></span><select id="c-${it.id}">${it.opts.map(([k,l])=>`<option value="${k}" ${k===v?'selected':''}>${l}</option>`).join('')}</select></div>`;
+      else if(it.type==='check')h+=`<div class="ctl chk"><input type="checkbox" id="c-${it.id}" ${v?'checked':''}><label for="c-${it.id}">${it.label}</label></div>`;
+      else{const sv=it.log?Math.round(L10(v)*1000)/1000:v;h+=`<div class="ctl"><label for="c-${it.id}">${it.label}</label><output id="c-${it.id}O">${fmtVal(it,v)}</output><input type="range" id="c-${it.id}" min="${it.log?L10(it.min):it.min}" max="${it.log?L10(it.max):it.max}" step="${it.log?0.005:it.step}" value="${sv}"></div>`;}});
+    if(sec.sec==='What-if errors')h+=`<button class="btn warn" id="clearErr" type="button" style="margin-top:8px">Clear all errors</button>`;
+    h+='</details>';});
+  $('rail').innerHTML=h;
+  CTL.forEach(sec=>sec.items.forEach(it=>{const el=$('c-'+it.id);const ev=it.type==='select'||it.type==='check'?'change':'input';
+    el.addEventListener(ev,()=>{let v=it.type==='check'?el.checked:it.type==='select'?el.value:+el.value;
+      if(it.log){v=Math.pow(10,v);v=v<50?Math.round(v):v<500?Math.round(v/5)*5:Math.round(v/25)*25;}
+      it.set(v);if($('c-'+it.id+'O'))$('c-'+it.id+'O').textContent=fmtVal(it,v);
+      if(it.id==='preset'||it.id==='tau')syncRail();
+      onChange(it);});}));
+  $('clearErr').addEventListener('click',()=>{Object.assign(S.err,{svp:'correct',svs:0,rollBias:0,pitchBias:0,lat:0,txY:0,txZ:0,gnssX:0});syncRail();onChange({prof:true});});
+}
+function syncRail(){CTL.forEach(sec=>sec.items.forEach(it=>{const el=$('c-'+it.id);if(!el)return;const v=it.get();
+  if(it.type==='check')el.checked=v;else if(it.type==='select')el.value=v;else{el.value=it.log?L10(v):v;const o=$('c-'+it.id+'O');if(o)o.textContent=fmtVal(it,v);}}));}
+let chT=null;
+function onChange(it){clearTimeout(chT);chT=setTimeout(()=>{
+  if(it.reset){refreshAll(true);return;}
+  if(it.prof){const zmax=PT.n*PT.dz;PT=profile(zmax,'true');PA=profile(zmax,S.err.svp);}
+  computeAcoustics();drawSignal();updateAcqStats();if(!running){drawCoverage();drawPing();}},60);}
+function computeAcoustics(){const T=meanT();ALPHA=absorption(S.sonar.f,T,S.env.S,S.env.depth/2000);let s=0,n=50;for(let i=0;i<n;i++)s+=mack(tempAt(S.env.depth*(i+0.5)/n),S.env.S,S.env.depth*(i+0.5)/n);CMEAN=s/n;}
+function refreshAll(reset){computeAcoustics();if(reset){running=false;resetSurvey();setRun();}drawVessel();drawSignal();}
+
+/* ---------------- tabs ---------------- */
+function show(view){if(!['vessel','acquisition','signal'].includes(view))view='acquisition';S.tab=view;
+  ['vessel','acquisition','signal'].forEach(v=>{$('view-'+v).hidden=v!==view;$('tab-'+v).setAttribute('aria-selected',v===view);});
+  requestAnimationFrame(()=>{if(view==='vessel')drawVessel();if(view==='signal')drawSignal();if(view==='acquisition'){drawCoverage();drawPing();}});}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{try{history.replaceState(null,'','#'+b.dataset.view);}catch(e){}show(b.dataset.view);}));
+window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
+
+/* ---------------- wiring ---------------- */
+$('runBtn').addEventListener('click',()=>{if(SIM.done)resetSurvey();running=!running;setRun();if(running)requestAnimationFrame(step);});
+$('resetBtn').addEventListener('click',()=>{running=false;resetSurvey();setRun();});
+[['layDepth','depth'],['layErr','err'],['laySnr','snr']].forEach(([id,l])=>$(id).addEventListener('click',()=>{layer=l;['layDepth','layErr','laySnr'].forEach(x=>$(x).setAttribute('aria-pressed',x===id));drawCoverage();}));
+$('conv').addEventListener('change',e=>{S.conv=e.target.value;renderTable();drawVessel();});
+$('sigAngle').addEventListener('input',drawSignal);
+['tRoll','tPitch'].forEach(id=>$(id).addEventListener('input',refreshDerived));
+hookDrag('cvPlan','plan');hookDrag('cvProf','prof');
+let rz=null;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.tab==='vessel')drawVessel();if(S.tab==='signal')drawSignal();if(S.tab==='acquisition'){drawCoverage();drawPing();}},120);});
+
+/* ---------------- boot: pre-run a short demo so the first view is a working survey ---------------- */
+renderRail();hullControls();renderTable();computeAcoustics();resetSurvey();renderFacts();
+(function warm(){const v=S.survey.speed*0.5144,rate=pingRateEff(),dt=1/rate;let k=0;
+  while(SIM.y<W.Lh*0.55&&k<4000){SIM.t+=dt*3;SIM.y+=v*dt*3;const P=doPing();if(P){storePing(P,SIM.yPrev);SIM.last=P;SIM.yPrev=P.out.length?P.out[0].wy:SIM.y;}k++;}})();
+show(location.hash.slice(1)||'acquisition');setRun();updateAcqStats();
+})();
+</script>
+</body>
+</html>
